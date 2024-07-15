@@ -8,6 +8,7 @@ package apis
  */
 
 import (
+	"gorm.io/gorm"
 	"log/slog"
 	"net/http"
 
@@ -131,7 +132,7 @@ func (e *Role) SetAuthorize(ctx *gin.Context) {
 	//	}
 	//}
 	menus := make([]*models.Menu, 0)
-	err = center.Default.GetDB(ctx, &models.Menu{}).Model(&models.Menu{}).
+	err = center.Default.GetDB(ctx, &models.Menu{}).Session(&gorm.Session{NewDB: true}).Model(&models.Menu{}).
 		Where("path in (?)", req.Paths).
 		Where("type = ? or type = ?", pkg.MenuAccessType, pkg.ComponentAccessType).
 		Preload("Children").
