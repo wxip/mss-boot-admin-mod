@@ -1,6 +1,8 @@
 package apis
 
 import (
+	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -58,6 +60,26 @@ func (e *Menu) Other(r *gin.RouterGroup) {
 	r.GET("/menu/api/:id", middleware.Auth.MiddlewareFunc(), e.GetAPI)
 	r.POST("/menu/bind-api", middleware.Auth.MiddlewareFunc(), e.BindAPI)
 	r.GET("/menus", middleware.Auth.MiddlewareFunc(), e.List)
+}
+
+func MenuScope(ctx *gin.Context) func(db *gorm.DB) *gorm.DB {
+	return func(db *gorm.DB) *gorm.DB {
+		if ctx == nil {
+			return db
+		}
+		tenant, err := center.GetTenant().GetTenant(ctx)
+		if err != nil {
+			slog.Error("get tenant error", "error", err)
+			_ = db.AddError(err)
+			return db
+		}
+		if !tenant.GetDefault() {
+			menu := models.Menu{}
+			query := fmt.Sprintf("`%s`.`default` = false", menu.TableName())
+			db = db.Where(query)
+		}
+		return db
+	}
 }
 
 // UpdateAuthorize 更新菜单权限
@@ -131,7 +153,7 @@ func (e *Menu) GetAuthorize(ctx *gin.Context) {
 	api := response.Make(ctx)
 	verify := middleware.GetVerify(ctx)
 	list := make([]*models.Menu, 0)
-	err := center.Default.GetDB(ctx, &models.Menu{}).
+	err := center.Default.GetDB(ctx, &models.Menu{}).Session(&gorm.Session{NewDB: true}).Scopes(MenuScope(ctx)).
 		Where("type = ? OR type = ?", pkg.MenuAccessType, pkg.DirectoryAccessType).
 		Order("sort desc").
 		Find(&list).Error
@@ -180,6 +202,7 @@ func (e *Menu) Tree(ctx *gin.Context) {
 	api := response.Make(ctx)
 	list := make([]*models.Menu, 0)
 	err := center.Default.GetDB(ctx, &models.Menu{}).WithContext(ctx).
+		Session(&gorm.Session{NewDB: true}).Scopes(MenuScope(ctx)).
 		Where("type <> ?", pkg.APIAccessType).
 		Find(&list).Error
 	if err != nil {

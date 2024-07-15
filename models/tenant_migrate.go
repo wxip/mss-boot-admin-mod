@@ -341,6 +341,88 @@ func (t *Tenant) Migrate(tx *gorm.DB) error {
 						},
 					},
 				},
+				{
+					Name: "menu",
+					Path: "/menu",
+					Sort: 16,
+					Type: pkg.MenuAccessType,
+					Children: []*Menu{
+						{
+							Name:   "/admin/api/menus",
+							Path:   "/admin/api/menus",
+							Method: http.MethodGet,
+							Type:   pkg.APIAccessType,
+						},
+						{
+							Name:   "/admin/api/menus/*",
+							Path:   "/admin/api/menus/:id",
+							Method: http.MethodGet,
+							Type:   pkg.APIAccessType,
+						},
+						{
+							Name:       "control",
+							Path:       "/menu/:id",
+							HideInMenu: true,
+							Type:       pkg.MenuAccessType,
+						},
+						{
+							Name:       "create",
+							Path:       "/menu/create",
+							HideInMenu: true,
+							Type:       pkg.ComponentAccessType,
+							Children: []*Menu{
+								{
+									Name:   "/admin/api/menus",
+									Path:   "/admin/api/menus",
+									Method: http.MethodPost,
+									Type:   pkg.APIAccessType,
+								},
+							},
+						},
+						{
+							Name:       "edit",
+							Path:       "/menu/edit",
+							HideInMenu: true,
+							Type:       pkg.ComponentAccessType,
+							Children: []*Menu{
+								{
+									Name:   "/admin/api/menus/*",
+									Path:   "/admin/api/menus/:id",
+									Method: http.MethodPut,
+									Type:   pkg.APIAccessType,
+								},
+							},
+						},
+						{
+							Name:       "delete",
+							Path:       "/menu/delete",
+							HideInMenu: true,
+							Type:       pkg.ComponentAccessType,
+							Children: []*Menu{
+								{
+									Name:   "/admin/api/menus/*",
+									Path:   "/admin/api/menus/:id",
+									Method: http.MethodDelete,
+									Type:   pkg.APIAccessType,
+								},
+							},
+						},
+						{
+							Name:       "bind-api",
+							Path:       "/menu/bind-api",
+							HideInMenu: true,
+							Type:       pkg.ComponentAccessType,
+							Children: []*Menu{
+								{
+									Name:   "/admin/api/menu/bind-api",
+									Path:   "/admin/api/menu/bind-api",
+									Method: http.MethodPost,
+									Type:   pkg.APIAccessType,
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 		{
@@ -1061,97 +1143,16 @@ func (t *Tenant) Migrate(tx *gorm.DB) error {
 						},
 					},
 				},
-				{
-					Name: "menu",
-					Path: "/menu",
-					Sort: 16,
-					Type: pkg.MenuAccessType,
-					Children: []*Menu{
-						{
-							Name:   "/admin/api/menus",
-							Path:   "/admin/api/menus",
-							Method: http.MethodGet,
-							Type:   pkg.APIAccessType,
-						},
-						{
-							Name:   "/admin/api/menus/*",
-							Path:   "/admin/api/menus/:id",
-							Method: http.MethodGet,
-							Type:   pkg.APIAccessType,
-						},
-						{
-							Name:       "control",
-							Path:       "/menu/:id",
-							HideInMenu: true,
-							Type:       pkg.MenuAccessType,
-						},
-						{
-							Name:       "create",
-							Path:       "/menu/create",
-							HideInMenu: true,
-							Type:       pkg.ComponentAccessType,
-							Children: []*Menu{
-								{
-									Name:   "/admin/api/menus",
-									Path:   "/admin/api/menus",
-									Method: http.MethodPost,
-									Type:   pkg.APIAccessType,
-								},
-							},
-						},
-						{
-							Name:       "edit",
-							Path:       "/menu/edit",
-							HideInMenu: true,
-							Type:       pkg.ComponentAccessType,
-							Children: []*Menu{
-								{
-									Name:   "/admin/api/menus/*",
-									Path:   "/admin/api/menus/:id",
-									Method: http.MethodPut,
-									Type:   pkg.APIAccessType,
-								},
-							},
-						},
-						{
-							Name:       "delete",
-							Path:       "/menu/delete",
-							HideInMenu: true,
-							Type:       pkg.ComponentAccessType,
-							Children: []*Menu{
-								{
-									Name:   "/admin/api/menus/*",
-									Path:   "/admin/api/menus/:id",
-									Method: http.MethodDelete,
-									Type:   pkg.APIAccessType,
-								},
-							},
-						},
-						{
-							Name:       "bind-api",
-							Path:       "/menu/bind-api",
-							HideInMenu: true,
-							Type:       pkg.ComponentAccessType,
-							Children: []*Menu{
-								{
-									Name:   "/admin/api/menu/bind-api",
-									Path:   "/admin/api/menu/bind-api",
-									Method: http.MethodPost,
-									Type:   pkg.APIAccessType,
-								},
-							},
-						},
-					},
-				},
 			},
 		},
 	}
+
 	if t.Default {
-		menus = append(menus, tenantMenu...)
-	}
-	err = tx.Create(&menus).Error
-	if err != nil {
-		return err
+		menus = append(menus, SetDefault(tenantMenu)...)
+		err = tx.Create(&menus).Error
+		if err != nil {
+			return err
+		}
 	}
 
 	languages := []Language{
@@ -1208,4 +1209,24 @@ func (t *Tenant) Migrate(tx *gorm.DB) error {
 		return err
 	}
 	return nil
+}
+
+func SetDefault(lst []Menu) []Menu {
+	if len(lst) > 0 {
+		for i := range lst {
+			lst[i].Default = true
+			lst[i].Children = SetDefaultInternal(lst[i].Children)
+		}
+	}
+	return lst
+}
+
+func SetDefaultInternal(lst []*Menu) []*Menu {
+	if len(lst) > 0 {
+		for _, menu := range lst {
+			menu.Default = true
+			menu.Children = SetDefaultInternal(menu.Children)
+		}
+	}
+	return lst
 }

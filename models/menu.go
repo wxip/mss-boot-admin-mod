@@ -69,6 +69,8 @@ type Menu struct {
 	Status enum.Status `json:"status" gorm:"column:status;comment:状态;size:10"`
 	// Sort 排序
 	Sort int `json:"sort" gorm:"column:sort;comment:排序;size:11;not null;default:0"`
+	// Default 是否为默认租户专属菜单
+	Default bool `json:"default" gorm:"column:default;size:1;comment:是否为默认租户专属菜单"`
 	// Children 子菜单
 	Children []*Menu `json:"children,omitempty" gorm:"foreignKey:ParentID;references:ID" swaggerignore:"true"`
 }
